@@ -1,16 +1,25 @@
 import {Lib} from '../ffiHelper';
-import {String, Int, Int32, Void, Uint32} from "../types";
+import {CString, Int32, Void, Uint32} from "../types";
 
 let lib = Object.create(null);
 // 这里是实际上sdl2被ffi处理的位置
 Lib({
-    SDL_SetError: [ Int32, [ String, ] ],
-    SDL_GetError: [ String, [ ] ],
+    SDL_SetError: [ Int32, [ CString, ] ],
+    SDL_GetError: [ CString, [ ] ],
     SDL_ClearError: [ Void, [ ] ],
     SDL_Error: [ Int32, [ Uint32, ] ],
-}, exports);
+}, lib);
 
 // 这里的都算是方法声明
+export enum ErrorCode {
+    ENOMEM = 0,
+    EFREAD = 1,
+    EFWRITE = 2,
+    EFSEEK = 3,
+    UNSUPPORTED = 4,
+    LASTERROR = 5,
+}
+
 /**
  * 清除上一个错误的信息，只清除信息错误还在队列中，调用这个函数后再 getError 返回的不是前一个错误的信息， 而是
  * 空字符串。
@@ -32,8 +41,13 @@ export function getError(): string {
  * @return 始终返回 -1
  */
 export function setError(message: any): -1 {
-    message = '' + message;
-    return lib.SDL_SetError(message);
+    return lib.SDL_SetError(`${message}`);
 }
 
-export function Error()
+/**
+ *
+ * @return always -1
+ */
+export function Error(code: ErrorCode): -1 {
+    return lib.SDL_Error(code)
+}

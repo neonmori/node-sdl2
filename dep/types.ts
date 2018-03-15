@@ -12,7 +12,7 @@ const Uint64 = Ref.types.uint64;
 const Float = Ref.types.float;
 const Double = Ref.types.double;
 
-const String = Ref.types.CString;
+const CString = Ref.types.CString;
 const Bool = Ref.types.bool;
 const Byte = Ref.types.byte;
 
@@ -40,7 +40,7 @@ const PUint64 = Ref.refType(Uint64);
 const PFloat = Ref.refType(Float);
 const PDouble = Ref.refType(Double);
 
-const PString = Ref.refType(String);
+const PString = Ref.refType(CString);
 const PBool = Ref.refType(Bool);
 const PByte = Ref.refType(Byte);
 
@@ -56,6 +56,10 @@ const PLonglong = Ref.refType(Longlong);
 const PUlonglong = Ref.refType(Ulonglong);
 const PSizeT = Ref.refType(SizeT);
 
+const PPVoid = Ref.refType(PVoid);
+
+const WcharT = Int32;
+const PWcharT = PInt32;
 
 export {
     Void,
@@ -69,7 +73,7 @@ export {
     Uint64,
     Float,
     Double,
-    String,
+    CString,
     Bool,
     Byte,
     Char,
@@ -107,5 +111,9 @@ export {
     PUlong,
     PLonglong,
     PUlonglong,
-    PSizeT
+    PSizeT,
+    PPVoid,
+
+    WcharT,
+    PWcharT,
 };
