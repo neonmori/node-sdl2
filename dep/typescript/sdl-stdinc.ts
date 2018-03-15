@@ -103,36 +103,3 @@ Lib({
     SDL_iconv: [SizeT, [IConvT, PString, PSizeT, PString, PSizeT,]],
     SDL_iconv_CString: [CString, [CString, CString, CString, SizeT,]],
 }, lib);
-
-// Let's only export some memory related methods...
-export function malloc(size: SizeT): PVoid {
-    return lib.SDL_malloc(size);
-}
-
-export function calloc(nmemb: SizeT, size: SizeT): PVoid {
-    return lib.SDL_calloc(nmemb, size);
-}
-
-export function realloc(mem: PVoid, size: SizeT): PVoid {
-    return lib.SDL_realloc(mem, size);
-}
-
-export function free(mem: PVoid): void {
-    return lib.SDL_free(mem);
-}
-
-export function memset(dst: PVoid, c: Int32, len: SizeT): PVoid {
-    return lib.SDL_memset(dst, c, len);
-}
-
-export function memcpy(dst: PVoid, src: PVoid, len: SizeT): PVoid {
-    return lib.SDL_memcpy(dst, src, len);
-}
-
-export function memmove(dst: PVoid, src: PVoid, len: SizeT): PVoid {
-    return lib.SDL_memmove(dst, src, len);
-}
-
-export function memcmp(s1: PVoid, s2: PVoid, len: SizeT): Int32 {
-    return lib.SDL_memcpy(s1, s2, len);
-}

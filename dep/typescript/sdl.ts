@@ -23,11 +23,11 @@ export enum InitFlag {
     INIT_EVERYTHING     = INIT_TIMER | INIT_AUDIO | INIT_VIDEO | INIT_EVENTS | INIT_JOYSTICK | INIT_HAPTIC | INIT_GAMECONTROLLER
 }
 
-export function init(flags: InitFlag): Int32 {
+export function init(flags: InitFlag): number {
     return lib.SDL_Init(flags);
 }
 
-export function initSubSystem(flags: InitFlag): Int32 {
+export function initSubSystem(flags: InitFlag): number {
     return lib.SDL_InitSubSystem(flags);
 }
 
@@ -35,7 +35,7 @@ export function quitSubSystem(flags: InitFlag): void {
     return lib.SDL_QuitSubSystem(flags);
 }
 
-export function wasInit(flags: InitFlag): Uint32 {
+export function wasInit(flags: InitFlag): number {
     return lib.SDL_WasInit(flags);
 }
 
