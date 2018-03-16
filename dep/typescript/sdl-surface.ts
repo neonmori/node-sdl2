@@ -70,6 +70,10 @@ export class Surface {
     constructor(private _surface$: Pointer) {
     }
 
+    get surface(): Pointer {
+        return this._surface$;
+    }
+
     get w(): number {
         // (*_surface).w === _surface->w
         return this._surface$.deref().w;
