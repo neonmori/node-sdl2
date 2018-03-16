@@ -1,6 +1,7 @@
 import {Lib} from '../ffiHelper';
 import * as Struct from 'ref-struct';
 import * as Ref from 'ref';
+import * as ArrayType from 'ref-array';
 import {Int32, PInt32, Uint32, Void} from "../types";
 
 export const Point = Struct({
@@ -15,6 +16,7 @@ export const Rect = Struct({
 });
 export const PPoint = Ref.refType(Point);
 export const PRect  = Ref.refType(Rect);
+export const RectArray = ArrayType(Rect);
 
 let lib = Object.create(null);
 Lib({

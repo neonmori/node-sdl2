@@ -4,7 +4,7 @@ import * as Struct from 'ref-struct';
 import * as Ref from 'ref';
 import {Int32, Pointer, PUint32, PUint8, PVoid, Uint32, Uint8, Void} from "../types";
 import {PPalette, PPixelFormat} from './sdl-pixels';
-import {PRect, Rect} from "./sdl-rect";
+import {PRect, Rect, RectArray} from "./sdl-rect";
 import {PRWOps} from "./sdl-rwops";
 
 export enum BlendMode {
@@ -67,39 +67,39 @@ Lib({
 }, lib);
 
 export class Surface {
-    constructor(private _surface: Pointer) {
+    constructor(private _surface$: Pointer) {
     }
 
     get w(): number {
         // (*_surface).w === _surface->w
-        return this._surface.deref().w;
+        return this._surface$.deref().w;
     }
 
     get h(): number {
-        return this._surface.deref().h;
+        return this._surface$.deref().h;
     }
 
     free(): void {
-        lib.SDL_FreeSurface(this._surface);
+        lib.SDL_FreeSurface(this._surface$);
     }
 
     // TODO: palette.unpack()
     setPalette(palette: any): Int32 {
         // palette: *Palette
-        return lib.SDL_SetSurfacePalette(this._surface, palette);
+        return lib.SDL_SetSurfacePalette(this._surface$, palette);
     }
 
     lock(): Int32 {
-        return lib.SDL_LockSurface(this._surface);
+        return lib.SDL_LockSurface(this._surface$);
     }
 
     unlock(): void {
-        lib.SDL_UnlockSurface(this._surface);
+        lib.SDL_UnlockSurface(this._surface$);
     }
 
     // SDL_SaveBMP_RW: [ Int32, [ PSurface, PRWOps, Int32, ] ],
     saveBMP_RW(dst: Pointer, freeDst: Int32): Int32 {
-        return lib.SDL_SaveBMP_RW(this._surface, dst, freeDst);
+        return lib.SDL_SaveBMP_RW(this._surface$, dst, freeDst);
     }
 
     // SaveBMP saves the surface to a BMP file.
@@ -108,29 +108,110 @@ export class Surface {
     //     return surface.SaveBMPRW(RWFromFile(file, "wb"), 1)
     // }
 
-    setRLE(flag: Int32): Int32 {
-        return lib.SDL_SetSurfaceRLE(this._surface, flag);
+    setRLE(flag: number): number {
+        return lib.SDL_SetSurfaceRLE(this._surface$, flag);
     }
 
-    setColorKey(flag: Int32, key: Uint32): Int32 {
-        return lib.SDL_SetColorKey(this._surface, flag, key);
+    setColorKey(flag: number, key: number): number {
+        return lib.SDL_SetColorKey(this._surface$, flag, key);
     }
 
-    getColorKey(): { key: Uint32, res: Int32 } {
-        let key_p = Ref.alloc(Uint32);
-        let r = lib.SDL_GetColorKey(this._surface, key_p);
-        return {key: key_p.deref(), res: r};
+    getColorKey(): { key: number, res: number } {
+        let key$ = Ref.alloc(Uint32);
+        let res = lib.SDL_GetColorKey(this._surface$, key$);
+        return {key: key$.deref(), res};
     }
 
-    // SDL_SetSurfaceColorMod: [ Int32, [ PSurface, Uint8, Uint8, Uint8, ] ],
+    setColorMod(r: number, g: number, b: number): number {
+        return lib.SDL_SetSurfaceColorMod(this._surface$, r, g, b);
+    }
 
-    // SDL_GetSurfaceColorMod: [ Int32, [ PSurface, PUint8, PUint8, PUint8, ] ],
-    // SDL_SetSurfaceAlphaMod: [ Int32, [ PSurface, Uint8, ] ],
-    // SDL_GetSurfaceAlphaMod: [ Int32, [ PSurface, PUint8, ] ],
-    // SDL_SetSurfaceBlendMode: [ Int32, [ PSurface, Uint32, ] ],
-    // SDL_GetSurfaceBlendMode: [ Int32, [ PSurface, PUint32, ] ],
+    getColorMod(): { r: number, g: number, b: number, res: number } {
+        let r$ = Ref.alloc(Uint8);
+        let g$ = Ref.alloc(Uint8);
+        let b$ = Ref.alloc(Uint8);
 
+        let res = lib.SDL_GetSurfaceColorMod(this._surface$, r$, g$, b$);
 
+        return {r: r$.deref(), g: g$.deref(), b: b$.deref(), res};
+    }
+
+    setAlphaMod(alpha: number): number {
+        return lib.SDL_SetSurfaceAlphaMod(this._surface$, +alpha);
+    }
+
+    getAlphaMod(): { alpha: number, res: number } {
+        let alpha$ = Ref.alloc(Uint8);
+        let res = lib.SDL_GetSurfaceAlphaMod(this._surface$, alpha$);
+        return {alpha: alpha$.deref(), res};
+    }
+
+    setBlendMode(bm: BlendMode): number {
+        return lib.SDL_SetSurfaceBlendMode(this._surface$, bm);
+    }
+
+    getBlendMode(): { mode: BlendMode, res: number } {
+        let mode$ = Ref.alloc(Uint8);
+        let res = lib.SDL_GetSurfaceBlendMode(this._surface$, mode$);
+        return {mode: mode$.deref(), res};
+    }
+
+    setClipRect(x: number, y: number, w: number, h: number): number {
+        let rect = new Rect({x, y, w, h});
+        return lib.SDL_SetClipRect(this._surface$, rect.ref());
+    }
+
+    getClipRect(): { x: number, y: number, w: number, h: number } {
+        let rect = new Rect();
+        lib.SDL_GetClipRect(this._surface$, rect.ref());
+        return {x: rect.x, y: rect.y, w: rect.w, h: rect.h};
+    }
+
+    convert(pixelFormatPtr: Pointer, flags: number): Surface {
+        return new Surface(lib.SDL_ConvertSurface(this._surface$, pixelFormatPtr, flags));
+    }
+
+    convertFormat(pixelFormat: number, flags: number): Surface {
+        return new Surface(lib.SDL_ConvertSurfaceFormat(this._surface$, pixelFormat, flags));
+    }
+
+    fillRect(x: number, y: number, w: number, h: number, color: number): number {
+        let rect = new Rect({x, y, w, h});
+        return lib.SDL_FillRect(this._surface$, rect.ref(), color);
+    }
+
+    fillRects(rects:Array<{x: number, y: number, w: number, h: number}>, color: number): number {
+        let rectList = new RectArray(rects.length);
+        rects.forEach((rect: {x: number, y: number, w: number, h: number}, index: number) => {
+            rectList[index] = new Rect({x: rect.x, y: rect.y, w: rect.w, h:rect.h});
+        });
+        return lib.SDL_FillRects(this._surface$, rectList, rects.length, color);
+    }
+
+    upperBlit(srcRect: {x: number, y: number, w: number, h: number},
+              dst: Surface, dstRect: {x: number, y: number, w: number, h: number}): number {
+        return lib.SDL_UpperBlit(this._surface$, new Rect(srcRect).ref(), dst._surface$, new Rect(dstRect).ref());
+    }
+
+    lowerBlit(srcRect: {x: number, y: number, w: number, h: number},
+              dst: Surface, dstRect: {x: number, y: number, w: number, h: number}): number {
+        return lib.SDL_LowerBlit(this._surface$, new Rect(srcRect).ref(), dst._surface$, new Rect(dstRect).ref());
+    }
+
+    softStretch(srcRect: {x: number, y: number, w: number, h: number},
+                dst: Surface, dstRect: {x: number, y: number, w: number, h: number}): number {
+        return lib.SDL_SoftStretch(this._surface$, new Rect(srcRect).ref(), dst._surface$, new Rect(dstRect).ref());
+    }
+
+    upperBlitScaled(srcRect: {x: number, y: number, w: number, h: number},
+              dst: Surface, dstRect: {x: number, y: number, w: number, h: number}): number {
+        return lib.SDL_UpperBlitScaled(this._surface$, new Rect(srcRect).ref(), dst._surface$, new Rect(dstRect).ref());
+    }
+
+    lowerBlitScaled(srcRect: {x: number, y: number, w: number, h: number},
+              dst: Surface, dstRect: {x: number, y: number, w: number, h: number}): number {
+        return lib.SDL_LowerBlitScaled(this._surface$, new Rect(srcRect).ref(), dst._surface$, new Rect(dstRect).ref());
+    }
     static createRGBSurface(flags: Uint32, width: Int32, height: Int32, depth: Int32,
                             Rmask: Uint32, Gmask: Uint32, Bmask: Uint32, Amask: Uint32): Surface {
         return new Surface(lib.SDL_CreateRGBSurface(flags, width, height, depth, Rmask, Gmask, Bmask, Amask));
@@ -143,5 +224,10 @@ export class Surface {
 
     static loadBMP_RW(src: Pointer, freeSrc: Int32): Surface {
         return new Surface(lib.SDL_LoadBMP_RW(src, freeSrc));
+    }
+
+    static convertPixels(width: number, height: number, srcFormat: number, src: Pointer, srcPitch: number,
+                         dstFormat: number, dst: Pointer, dstPitch: number): number {
+        return lib.SDL_ConvertPixels(width, height, srcFormat, src, srcPitch, dstFormat, dst, dstPitch);
     }
 }
