@@ -48,6 +48,10 @@ export function setError(message: any): -1 {
  *
  * @return always -1
  */
-export function Error(code: ErrorCode): -1 {
+export function queryError(code: ErrorCode): -1 {
     return lib.SDL_Error(code)
+}
+
+export function sdlError(): Error {
+    return Error(lib.SDL_GetError());
 }

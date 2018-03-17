@@ -26,6 +26,10 @@ export class Texture {
     constructor(private _texture$: Pointer) {
     }
 
+    get cptr(): Pointer {
+        return this._texture$;
+    }
+
     query(): { format: number, access: number, w: number, h: number, res: number } {
         let format$ = Ref.alloc(Uint32);
         let access$ = Ref.alloc(Int32);

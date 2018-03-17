@@ -187,7 +187,7 @@ export class Surface {
     fillRects(rects:Array<{x: number, y: number, w: number, h: number}>, color: number): number {
         let rectList = new RectArray(rects.length);
         rects.forEach((rect: {x: number, y: number, w: number, h: number}, index: number) => {
-            rectList[index] = new Rect({x: rect.x, y: rect.y, w: rect.w, h:rect.h});
+            rectList[index] = new Rect(rect);
         });
         return lib.SDL_FillRects(this._surface$, rectList, rects.length, color);
     }
