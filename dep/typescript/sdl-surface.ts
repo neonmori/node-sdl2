@@ -4,7 +4,7 @@ import * as Struct from 'ref-struct';
 import * as Ref from 'ref';
 import {Int32, Pointer, PUint32, PUint8, PVoid, Uint32, Uint8, Void} from "../types";
 import {PPalette, PPixelFormat} from './sdl-pixels';
-import {PRect, Rect, RectArray} from "./sdl-rect";
+import {PRect, Rect} from "./sdl-rect";
 import {PRWOps} from "./sdl-rwops";
 
 export enum BlendMode {
@@ -70,7 +70,7 @@ export class Surface {
     constructor(private _surface$: Pointer) {
     }
 
-    get surface(): Pointer {
+    get cptr(): Pointer {
         return this._surface$;
     }
 
@@ -106,10 +106,10 @@ export class Surface {
         return lib.SDL_SaveBMP_RW(this._surface$, dst, freeDst);
     }
 
-    // SaveBMP saves the surface to a BMP file.
+    // SaveBMP saves the cptr to a BMP file.
     // (https://wiki.libsdl.org/SDL_SaveBMP)
-    // func (surface *Surface) SaveBMP(file string) error {
-    //     return surface.SaveBMPRW(RWFromFile(file, "wb"), 1)
+    // func (cptr *Surface) SaveBMP(file string) error {
+    //     return cptr.SaveBMPRW(RWFromFile(file, "wb"), 1)
     // }
 
     setRLE(flag: number): number {
@@ -185,11 +185,11 @@ export class Surface {
     }
 
     fillRects(rects:Array<{x: number, y: number, w: number, h: number}>, color: number): number {
-        let rectList = new RectArray(rects.length);
+        let buf = new Buffer(Rect.size * rects.length);
         rects.forEach((rect: {x: number, y: number, w: number, h: number}, index: number) => {
-            rectList[index] = new Rect(rect);
+            buf.set(Rect(rect).ref(), index*Rect.size);
         });
-        return lib.SDL_FillRects(this._surface$, rectList, rects.length, color);
+        return lib.SDL_FillRects(this._surface$, buf, rects.length, color);
     }
 
     upperBlit(srcRect: {x: number, y: number, w: number, h: number},

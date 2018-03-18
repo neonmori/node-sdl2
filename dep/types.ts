@@ -61,7 +61,30 @@ const PPVoid = Ref.refType(PVoid);
 const WcharT = Int32;
 const PWcharT = PInt32;
 
-interface Pointer extends Buffer {}
+interface Pointer extends Buffer {
+}
+
+interface XY {
+    x: number,
+    y: number,
+}
+
+interface WH {
+    w: number,
+    h: number,
+}
+
+interface XYWH extends XY, WH {
+
+}
+
+interface RGBA {
+    r: number,
+    g: number,
+    b: number,
+    a: number,
+}
+
 export {
     Void,
     Int8,
@@ -119,4 +142,5 @@ export {
     PWcharT,
 
     Pointer,
+    XY, WH, XYWH, RGBA,
 };

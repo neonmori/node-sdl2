@@ -1,8 +1,9 @@
 import {Lib} from '../ffiHelper';
 import * as Ref from 'ref';
-import {Int32, PInt32, Pointer, PPVoid, PUint32, PUint8, PVoid, Uint32, Uint8, Void} from "../types";
+import {Int32, PFloat, PInt32, Pointer, PPVoid, PUint32, PUint8, PVoid, Uint32, Uint8, Void} from "../types";
 import {PRect, Rect} from "./sdl-rect";
 import {BlendMode} from "./sdl-surface";
+import {sdlError} from "./sdl-error";
 
 export const CTexture = Void;
 export const PTexture = PVoid;
@@ -20,6 +21,9 @@ Lib({
     SDL_UpdateYUVTexture: [Int32, [PTexture, PRect, PUint8, Int32, PUint8, Int32, PUint8, Int32,]],
     SDL_LockTexture: [Int32, [PTexture, PRect, PPVoid, PInt32,]],
     SDL_UnlockTexture: [Void, [PTexture,]],
+    SDL_DestroyTexture: [Void, [PTexture,]],
+    SDL_GL_BindTexture: [Int32, [PTexture, PFloat, PFloat,]],
+    SDL_GL_UnbindTexture: [Int32, [PTexture,]],
 }, lib);
 
 export class Texture {
@@ -94,5 +98,21 @@ export class Texture {
 
     unlock() {
         lib.SDL_UnlockTexture(this._texture$);
+    }
+
+    destroy() {
+        lib.SDL_DestroyTexture(this._texture$);
+    }
+
+    glBind(textureWidth: number, textureHeight: number) {
+        if (0 != lib.SDL_GL_BindTexture(this._texture$, textureWidth, textureHeight)) {
+            throw sdlError();
+        }
+    }
+
+    glUnbind() {
+        if (0 != lib.SDL_GL_UnbindTexture(this._texture$)) {
+            throw sdlError();
+        }
     }
 }

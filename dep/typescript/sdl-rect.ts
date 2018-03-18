@@ -16,8 +16,6 @@ export const Rect = Struct({
 });
 export const PPoint = Ref.refType(Point);
 export const PRect  = Ref.refType(Rect);
-export const RectArray = ArrayType(Rect);
-export const PointArray = ArrayType(Point);
 
 let lib = Object.create(null);
 Lib({

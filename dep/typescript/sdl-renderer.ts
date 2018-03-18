@@ -1,15 +1,12 @@
 import {Lib} from '../ffiHelper';
-import * as FFI from 'ffi';
 import * as Struct from 'ref-struct';
 import * as Ref from 'ref';
 import * as ArrayType from 'ref-array';
 import {
-    CString, Double, Float, Int32, PFloat, PInt32, Pointer, PPVoid, PUint32, PUint8, PVoid, Uint32, Uint8,
-    Void
+    CString, Double, Float, Int32, PFloat, PInt32, Pointer, PPVoid, PUint32, PUint8, PVoid, RGBA, Uint32, Uint8,
+    Void, WH, XY, XYWH
 } from "../types";
-import {PPalette, PPixelFormat} from './sdl-pixels';
-import {Point, PPoint, PRect, Rect, RectArray, PointArray} from "./sdl-rect";
-import {PRWOps} from "./sdl-rwops";
+import {Point, PPoint, PRect, Rect} from "./sdl-rect";
 import {PTexture, Texture} from "./sdl-texture";
 import {BlendMode, PSurface, Surface} from "./sdl-surface";
 import {sdlError} from "./sdl-error";
@@ -93,30 +90,8 @@ Lib({
     SDL_RenderCopyEx: [Int32, [PRenderer, PTexture, PRect, PRect, Double, PPoint, Uint32,]],
     SDL_RenderReadPixels: [Int32, [PRenderer, PRect, Uint32, PVoid, Int32,]],
     SDL_RenderPresent: [Void, [PRenderer,]],
-    SDL_DestroyTexture: [Void, [PTexture,]],
     SDL_DestroyRenderer: [Void, [PRenderer,]],
-    SDL_GL_BindTexture: [Int32, [PTexture, PFloat, PFloat,]],
-    SDL_GL_UnbindTexture: [Int32, [PTexture,]],
 }, lib);
-
-interface wh {
-    w: number,
-    h: number,
-}
-
-interface rect {
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-}
-
-interface rgba {
-    r: number,
-    g: number,
-    b: number,
-    a: number,
-}
 
 export class Renderer {
     constructor(private _renderer$: Pointer) {
@@ -135,7 +110,7 @@ export class Renderer {
         return renderInfo;
     }
 
-    get outputSize(): wh {
+    get outputSize(): WH {
         let w$ = Ref.alloc(Int32);
         let h$ = Ref.alloc(Int32);
         if (0 != lib.SDL_GetRendererOutputSize(this._renderer$, w$, h$)) {
@@ -149,7 +124,7 @@ export class Renderer {
     }
 
     createTextureFromSurface(surface: Surface): Texture {
-        return new Texture(lib.SDL_CreateTextureFromSurface(this._renderer$, surface.surface));
+        return new Texture(lib.SDL_CreateTextureFromSurface(this._renderer$, surface.cptr));
     }
 
     targetSupported(): number {
@@ -166,38 +141,38 @@ export class Renderer {
         return new Texture(lib.SDL_GetRenderTarget(this._renderer$));
     }
 
-    set logicalSize(size: wh) {
+    set logicalSize(size: WH) {
         if (0 != lib.SDL_RenderSetLogicalSize(this._renderer$, size.w, size.h)) {
             throw sdlError();
         }
     }
 
-    get logicalSize(): wh {
+    get logicalSize(): WH {
         let w$ = Ref.alloc(Int32);
         let h$ = Ref.alloc(Int32);
         lib.SDL_RenderGetLogicalSize(this._renderer$, w$, h$);
         return {w: w$.deref(), h: h$.deref()};
     }
 
-    set viewport(r: rect) {
+    set viewport(r: XYWH) {
         if (0 != lib.SDL_RenderSetViewport(this._renderer$, new Rect(r).ref())) {
             throw sdlError();
         }
     }
 
-    get viewport(): rect {
+    get viewport(): XYWH {
         let r = new Rect();
         lib.SDL_RenderGetViewport(this._renderer$, r.ref());
         return {x: r.x, y: r.y, w: r.w, h: r.h};
     }
 
-    set clipRect(r: rect) {
+    set clipRect(r: XYWH) {
         if (0 != lib.SDL_RenderSetClipRect(this._renderer$, new Rect(r).ref())) {
             throw sdlError();
         }
     }
 
-    get clipRect(): rect {
+    get clipRect(): XYWH {
         let r = new Rect();
         lib.SDL_RenderGetClipRect(this._renderer$, r.ref());
         return {x: r.x, y: r.y, w: r.w, h: r.h};
@@ -207,26 +182,26 @@ export class Renderer {
         return 0 != lib.SDL_RenderIsClipEnabled(this._renderer$);
     }
 
-    set scale(scale: wh) {
+    set scale(scale: WH) {
         if (0 != lib.SDL_RenderSetScale(this._renderer$, scale.w, scale.h)) {
             throw sdlError();
         }
     }
 
-    get scale(): wh {
+    get scale(): WH {
         let w$ = Ref.alloc(Float);
         let h$ = Ref.alloc(Float);
         lib.SDL_RenderGetScale(this._renderer$, w$, h$);
         return {w: w$.deref(), h: h$.deref()};
     }
 
-    set drawColor(color: rgba) {
+    set drawColor(color: RGBA) {
         if (0 != lib.SDL_SetRenderDrawColor(this._renderer$, color.r, color.g, color.b, color.a)) {
             throw sdlError();
         }
     }
 
-    get drawColor(): rgba {
+    get drawColor(): RGBA {
         let r$ = Ref.alloc(Uint8);
         let g$ = Ref.alloc(Uint8);
         let b$ = Ref.alloc(Uint8);
@@ -255,6 +230,7 @@ export class Renderer {
             throw sdlError();
         }
     }
+
     // SDL_RenderDrawPoint: [Int32, [PRenderer, Int32, Int32,]],
     drawPoint(x: number, y: number) {
         if (0 != lib.SDL_RenderDrawPoint(this._renderer$, x, y)) {
@@ -262,13 +238,12 @@ export class Renderer {
         }
     }
 
-    drawPoints(points: Array<{x: number, y: number}>) {
-        let pointList = new PointArray(points.length);
-        points.forEach((point: {x: number, y: number}, index: number) => {
-            // TODO check if .ref() is needed
-            pointList[index] = new Point(point);
+    drawPoints(points: Array<XY>) {
+        let buf = new Buffer(Point.size * points.length);
+        points.forEach((point: XY, index: number) => {
+            buf.set(Point(point).ref(), index * Point.size);
         });
-        if (0 != lib.SDL_RenderDrawPoints(this._renderer$, pointList, points.length)) {
+        if (0 != lib.SDL_RenderDrawPoints(this._renderer$, buf, points.length)) {
             throw sdlError();
         }
     }
@@ -279,59 +254,77 @@ export class Renderer {
         }
     }
 
-    drawLines(points: Array<{x: number, y: number}>) {
-        let pointList = new PointArray(points.length);
-        points.forEach((point: {x: number, y: number}, index: number) => {
-            // TODO check if .ref() is needed
-            pointList[index] = new Point(point);
+    drawLines(points: Array<XY>) {
+        let buf = new Buffer(Point.size * points.length);
+        points.forEach((point: XY, index: number) => {
+            buf.set(Point(point).ref(), index * Point.size);
         });
-        if (0 != lib.SDL_RenderDrawLines(this._renderer$, pointList, points.length)) {
+        if (0 != lib.SDL_RenderDrawLines(this._renderer$, buf, points.length)) {
             throw sdlError();
         }
     }
 
-    drawRect(r: rect) {
+    drawRect(r: XYWH) {
         if (0 != lib.SDL_RenderDrawRect(this._renderer$, new Rect(r).ref())) {
             throw sdlError();
         }
     }
 
-    drawRects(rects: Array<rect>) {
-        let rectList = new RectArray(rects.length);
-        rects.forEach((r: rect, index: number) => {
-            // TODO check if .ref() is needed
-            rectList[index] = new Rect(r);
+    drawRects(rects: Array<XYWH>) {
+        let buf = new Buffer(Rect.size * rects.length);
+        rects.forEach((r: XYWH, index: number) => {
+            buf.set(Rect(r).ref(), index * Rect.size);
         });
-        if (0 != lib.SDL_RenderDrawRects(this._renderer$, rectList, rects.length)) {
+        if (0 != lib.SDL_RenderDrawRects(this._renderer$, buf, rects.length)) {
             throw sdlError();
         }
     }
 
-    fillRect(r: rect) {
+    fillRect(r: XYWH) {
         if (0 != lib.SDL_RenderFillRect(this._renderer$, new Rect(r).ref())) {
             throw sdlError();
         }
     }
 
-    fillRects(rects: Array<rect>) {
-        let rectList = new RectArray(rects.length);
-        rects.forEach((r: rect, index: number) => {
-            // TODO check if .ref() is needed
-            rectList[index] = new Rect(r);
+    fillRects(rects: Array<XYWH>) {
+        let buf = new Buffer(Rect.size * rects.length);
+        rects.forEach((r: XYWH, index: number) => {
+            buf.set(Rect(r).ref(), index * Rect.size);
         });
-        if (0 != lib.SDL_RenderFillRects(this._renderer$, rectList, rects.length)) {
+        if (0 != lib.SDL_RenderFillRects(this._renderer$, buf, rects.length)) {
             throw sdlError();
         }
     }
 
-    // SDL_RenderCopy: [Int32, [PRenderer, PTexture, PRect, PRect,]],
-    // SDL_RenderCopyEx: [Int32, [PRenderer, PTexture, PRect, PRect, Double, PPoint, Uint32,]],
-    // SDL_RenderReadPixels: [Int32, [PRenderer, PRect, Uint32, PVoid, Int32,]],
-    // SDL_RenderPresent: [Void, [PRenderer,]],
-    // SDL_DestroyTexture: [Void, [PTexture,]],
+    copy(texture: Texture, src: XYWH, dst: XYWH) {
+        if (0 != lib.SDL_RenderCopy(this._renderer$, texture.cptr, Rect(src).ref(), Rect(dst).ref())) {
+            throw sdlError();
+        }
+    }
+
+    copyEx(texture: Texture, src: XYWH, dst: XYWH, angle: number, center: XY, flip: RendererFlip) {
+        if (0 != lib.SDL_RenderCopyEx(this._renderer$, texture.cptr, Rect(src).ref(), Rect(dst).ref(), angle, Point(center).ref(), flip)) {
+            throw sdlError();
+        }
+    }
+
+    readPixels(rect: XYWH, format: number, pitch: number): Buffer {
+        let _pitch = pitch || 4;
+        let buf = new Buffer(rect.w * rect.h * pitch);
+        if (0 != lib.SDL_RenderReadPixels(this._renderer$, Rect(rect).ref(), format, buf, _pitch)) {
+            throw sdlError();
+        }
+        return buf;
+    }
+
+    present() {
+        lib.SDL_RenderPresent(this._renderer$);
+    }
+
     // SDL_DestroyRenderer: [Void, [PRenderer,]],
-    // SDL_GL_BindTexture: [Int32, [PTexture, PFloat, PFloat,]],
-    // SDL_GL_UnbindTexture: [Int32, [PTexture,]],
+    destroy() {
+        lib.SDL_DestroyRenderer(this._renderer$);
+    }
 
     static getNumRenderDrivers(): number {
         return lib.SDL_GetNumRenderDrivers();
@@ -344,8 +337,6 @@ export class Renderer {
     }
 
     static createSoftwareRenderer(surface: Surface): Renderer {
-        return new Renderer(lib.SDL_CreateSoftwareRenderer(surface.surface));
+        return new Renderer(lib.SDL_CreateSoftwareRenderer(surface.cptr));
     }
-
-
 }
