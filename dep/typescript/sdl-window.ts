@@ -2,15 +2,11 @@ import {Lib} from '../ffiHelper';
 import * as FFI from 'ffi';
 import * as Struct from 'ref-struct';
 import * as Ref from 'ref';
-import * as ArrayType from 'ref-array';
 import {
-    CString, Double, Float, Int32, PFloat, PInt32, Pointer, PPVoid, PUint16, PUint32, PUint8, PVoid, RGBA, Uint32,
-    Uint8,
-    Void, WH, XY, XYWH
+    CString, Float, Int32, PFloat, PInt32, Pointer, PPVoid, PUint16, PVoid, Uint32, Void, WH, XY, XYWH
 } from "../types";
-import {Point, PPoint, PRect, Rect} from "./sdl-rect";
-import {PTexture, Texture} from "./sdl-texture";
-import {BlendMode, PSurface, Surface} from "./sdl-surface";
+import {PPoint, PRect, Rect} from "./sdl-rect";
+import {PSurface, Surface} from "./sdl-surface";
 import {sdlError} from "./sdl-error";
 import {PPRenderer, PRenderer, Renderer, RendererFlags} from "./sdl-renderer";
 
@@ -131,6 +127,13 @@ export const DisplayMode = Struct({
 });
 export const PDisplayMode = Ref.refType(DisplayMode);
 
+interface IDisplayMode {
+    format: number,
+    w: number,
+    h: number,
+    refreshRate: number,
+}
+
 export const cWindow = Void;
 export const PWindow = PVoid;
 export const PPWindow = PPVoid;
@@ -228,22 +231,69 @@ Lib({
 }, lib);
 
 export class VideoGL {
-    // SDL_GL_LoadLibrary: [Int32, [CString,]],
-    // SDL_GL_GetProcAddress: [PVoid, [CString,]],
-    // SDL_GL_UnloadLibrary: [Void, []],
-    // SDL_GL_ExtensionSupported: [Uint32, [CString,]],
-    // SDL_GL_ResetAttributes: [Void, []],
-    // SDL_GL_SetAttribute: [Int32, [Uint32, Int32,]],
-    // SDL_GL_GetAttribute: [Int32, [Uint32, PInt32,]],
-    // SDL_GL_CreateContext: [GLContext, [PWindow,]],
-    // SDL_GL_MakeCurrent: [Int32, [PWindow, GLContext,]],
-    // SDL_GL_GetCurrentContext: [GLContext, []],
-    // SDL_GL_GetDrawableSize: [Void, [PWindow, PInt32, PInt32,]],
-    // SDL_GL_SetSwapInterval: [Int32, [Int32,]],
-    // SDL_GL_GetSwapInterval: [Int32, []],
-    // SDL_GL_SwapWindow: [Void, [PWindow,]],
-    // SDL_GL_DeleteContext: [Void, [GLContext,]],
-    static getCurrentWindow(): Window {
+    constructor(private _context$: Pointer) {
+
+    }
+
+    get cptr(): Pointer {
+        return this._context$;
+    }
+
+    destroy() {
+        lib.SDL_GL_DeleteContext(this._context$);
+    }
+
+    static loadLibrary(name: string) {
+        if (0 != lib.SDL_GL_LoadLibrary(name)) {
+            throw sdlError();
+        }
+    }
+
+    static getProcAddress(name: string): Pointer {
+        return lib.SDL_GL_GetProcAddress(name);
+    }
+
+    static unloadLibrary() {
+        lib.SDL_GL_UnloadLibrary();
+    }
+
+    static extensionSupported(name: string): boolean {
+        return lib.SDL_GL_ExtensionSupported(name) != 0;
+    }
+
+    static resetAttributes() {
+        lib.SDL_GL_ResetAttributes();
+    }
+
+    static setAttribute(attr: GLattr, value: number) {
+        if (0 != lib.SDL_GL_SetAttribute(attr, value)) {
+            throw sdlError();
+        }
+    }
+
+    static getAttribute(attr: GLattr): number {
+        let v$ = Ref.alloc(Int32);
+        if (0 != lib.SDL_GL_GetAttribute(attr, v$)) {
+            throw sdlError();
+        }
+        return v$.deref();
+    }
+
+    static set swapInterval(i: number) {
+        if (0 != lib.SDL_GL_SetSwapInterval(i)) {
+            throw sdlError();
+        }
+    }
+
+    static get swapInterval(): number {
+        return lib.SDL_GL_GetSwapInterval();
+    }
+
+    static get currentContext(): VideoGL {
+        return new VideoGL(lib.SDL_GL_GetCurrentContext());
+    }
+
+    static get currentWindow(): Window {
         return new Window(lib.SDL_GL_GetCurrentWindow());
     }
 }
@@ -305,9 +355,7 @@ export class Video {
         return num;
     }
 
-    static getDisplayMode(displayIndex: number, modeIndex: number): {
-        format: number, w: number, h: number, refreshRate: number,
-    } {
+    static getDisplayMode(displayIndex: number, modeIndex: number): IDisplayMode {
         let dm = DisplayMode();
         if (0 != lib.SDL_GetDisplayMode(displayIndex, modeIndex, dm.ref())) {
             throw sdlError();
@@ -315,9 +363,7 @@ export class Video {
         return {format: dm.format, w: dm.w, h: dm.h, refreshRate: dm.refresh_rate};
     }
 
-    static getDesktopDisplayMode(displayIndex: number): {
-        format: number, w: number, h: number, refreshRate: number,
-    } {
+    static getDesktopDisplayMode(displayIndex: number): IDisplayMode {
         let dm = DisplayMode();
         if (0 != lib.SDL_GetDesktopDisplayMode(displayIndex, dm.ref())) {
             throw sdlError();
@@ -325,9 +371,7 @@ export class Video {
         return {format: dm.format, w: dm.w, h: dm.h, refreshRate: dm.refresh_rate};
     }
 
-    static getCurrentDisplayMode(displayIndex: number): {
-        format: number, w: number, h: number, refreshRate: number,
-    } {
+    static getCurrentDisplayMode(displayIndex: number): IDisplayMode {
         let dm = DisplayMode();
         if (0 != lib.SDL_GetCurrentDisplayMode(displayIndex, dm.ref())) {
             throw sdlError();
@@ -335,9 +379,7 @@ export class Video {
         return {format: dm.format, w: dm.w, h: dm.h, refreshRate: dm.refresh_rate};
     }
 
-    static getClosestDisplayMode(displayIndex: number, mode: Pointer, closest: Pointer): {
-        format: number, w: number, h: number, refreshRate: number,
-    } {
+    static getClosestDisplayMode(displayIndex: number, mode: Pointer, closest: Pointer): IDisplayMode {
         let res = lib.SDL_GetClosestDisplayMode(displayIndex, mode, closest);
         if (res.isNull()) {
             throw sdlError();
@@ -367,6 +409,196 @@ export class Window {
         return this._window$;
     }
 
+
+    get displayIndex(): number {
+        return lib.SDL_GetWindowDisplayIndex(this._window$);
+    }
+
+
+    set displayMode(mode: IDisplayMode) {
+        let dm = new DisplayMode(mode);
+        if (0 != lib.SDL_SetWindowDisplayMode(this._window$, dm.ref())) {
+            throw sdlError();
+        }
+    }
+
+    get displayMode(): IDisplayMode {
+        let dm = new DisplayMode();
+        if (0 != lib.SDL_GetWindowDisplayMode(this._window$, dm.ref())) {
+
+        }
+        return {format: dm.format, w: dm.w, h: dm.h, refreshRate: dm.refresh_rate};
+    }
+
+
+    get pixelFormat(): number {
+        let res = lib.SDL_GetWindowPixelFormat(this._window$);
+        if (res == 0) {
+            throw sdlError();
+        }
+        return res;
+    }
+
+    get id(): number {
+        let res = lib.SDL_GetWindowID(this._window$);
+        if (res == 0) {
+            throw sdlError();
+        }
+        return res;
+    }
+
+    get flags(): WindowFlags {
+        return lib.SDL_GetWindowFlags(this._window$);
+    }
+
+    set title(t: string) {
+        lib.SDL_SetWindowTitle(this._window$, t);
+    }
+
+    get title(): string {
+        return lib.SDL_GetWindowTitle(this._window$);
+    }
+
+    set icon(surface: Surface) {
+        lib.SDL_SetWindowIcon(this._window$, surface.cptr);
+    }
+
+    setData(name: string, userdata: Buffer): Pointer {
+        return lib.SDL_SetWindowData(this._window$, name, userdata);
+    }
+
+    getData(name: string): Pointer {
+        return lib.SDL_GetWindowData(this._window$, name);
+    }
+
+    set position(pos: XY) {
+        lib.SDL_SetWindowPosition(this._window$, pos.x, pos.y);
+    }
+
+    get position(): XY {
+        let x$ = Ref.alloc(Int32);
+        let y$ = Ref.alloc(Int32);
+        lib.SDL_GetWindowPosition(this._window$, x$, y$);
+        return {x: x$.deref(), y: y$.deref()};
+    }
+
+    set size(sz: WH) {
+        lib.SDL_SetWindowSize(this._window$, sz.w, sz.h);
+    }
+
+    get size(): WH {
+        let w$ = Ref.alloc(Int32);
+        let h$ = Ref.alloc(Int32);
+        lib.SDL_GetWindowSize(this._window$, w$, h$);
+        return {w: w$.deref(), h: h$.deref()};
+    }
+
+
+    set minimumSize(sz: WH) {
+        lib.SDL_SetWindowMinimumSize(this._window$, sz.w, sz.h);
+    }
+
+    get minimumSize(): WH {
+        let w$ = Ref.alloc(Int32);
+        let h$ = Ref.alloc(Int32);
+        lib.SDL_GetWindowMinimumSize(this._window$, w$, h$);
+        return {w: w$.deref(), h: h$.deref()};
+    }
+
+    set maximumSize(sz: WH) {
+        lib.SDL_GetWindowMaximumSize(this._window$, sz.w, sz.h);
+    }
+
+    get maximumSize(): WH {
+        let w$ = Ref.alloc(Int32);
+        let h$ = Ref.alloc(Int32);
+        lib.SDL_GetWindowMaximumSize(this._window$, w$, h$);
+        return {w: w$.deref(), h: h$.deref()};
+    }
+
+    set bordered(b: boolean) {
+        lib.SDL_SetWindowBordered(this._window$, b ? 1 : 0);
+    }
+
+    show() {
+        lib.SDL_ShowWindow(this._window$);
+    }
+
+    hide() {
+        lib.SDL_HideWindow(this._window$);
+    }
+
+    raise() {
+        lib.SDL_RaiseWindow(this._window$);
+    }
+
+    maximize() {
+        lib.SDL_MaximizeWindow(this._window$);
+    }
+
+    minimize() {
+        lib.SDL_MinimizeWindow(this._window$);
+    }
+
+    restore() {
+        lib.SDL_RestoreWindow(this._window$);
+    }
+
+    set fullScreen(fs: WindowFlags.WINDOW_FULLSCREEN | WindowFlags.WINDOW_FULLSCREEN_DESKTOP | 0) {
+        if (0 != lib.SDL_SetWindowFullscreen(this._window$, fs)) {
+            throw sdlError();
+        }
+    }
+
+    get surface(): Surface {
+        return new Surface(lib.SDL_GetWindowSurface(this._window$));
+    }
+
+    updateSurface() {
+        if (0 != lib.SDL_UpdateWindowSurface(this._window$)) {
+            throw sdlError();
+        }
+    }
+
+    updateSurfaceRects(rects: Array<XYWH>) {
+        let buf = new Buffer(Rect.size * rects.length);
+        rects.forEach((r: XYWH, index: number) => {
+            buf.set(Rect(r).ref(), index * Rect.size);
+        });
+        if (0 != lib.SDL_UpdateWindowSurfaceRects(this._window$, buf, rects.length)) {
+            throw sdlError();
+        }
+    }
+
+    set grab(grabbed: boolean) {
+        lib.SDL_SetWindowGrab(this._window$, grabbed ? 1 : 0);
+    }
+
+    get grab(): boolean {
+        return lib.SDL_GetWindowGrab(this._window$) != 0;
+    }
+
+    set brightness(br: number) {
+        if (0 != lib.SDL_SetWindowBrightness(this._window$, br)) {
+            throw sdlError();
+        }
+    }
+
+    get brightness(): number {
+        return lib.SDL_GetWindowBrightness(this._window$);
+    }
+
+    // TODO SDL_SetWindowGammaRamp: [Int32, [PWindow, PUint16, PUint16, PUint16,]],
+    // TODO SDL_GetWindowGammaRamp: [Int32, [PWindow, PUint16, PUint16, PUint16,]],
+    // TODO SDL_SetWindowHitTest: [Int32, [PWindow, HitTestLambda, PVoid,]],
+    // set hitTestLambda(lambda: Buffer, ) {
+    //     FFI.Callback()
+    // }
+
+    destroy() {
+        lib.SDL_DestroyWindow(this._window$);
+    }
+
     createRenderer(index: number, flags: RendererFlags): Renderer {
         return new Renderer(lib.SDL_CreateRenderer(this._window$, index, flags));
     }
@@ -375,7 +607,28 @@ export class Window {
         return new Renderer(lib.SDL_GetRenderer(this._window$));
     }
 
-    static createWindowAndRenderer(w: number, h: number, flags: WindowFlags): { window: Window, renderer: Renderer } {
+    createGLContext(): VideoGL {
+        return new VideoGL(lib.SDL_GL_CreateContext(this._window$));
+    }
+
+    makeCurrentGLContext(context: VideoGL) {
+        if (0 != lib.SDL_GL_MakeCurrent(this._window$, context.cptr)) {
+            throw sdlError();
+        }
+    }
+
+    get glDrawableSize(): WH {
+        let w$ = Ref.alloc(Int32);
+        let h$ = Ref.alloc(Int32);
+        lib.SDL_GL_GetDrawableSize(this._window$, w$, h$);
+        return {w: w$.deref(), h: h$.deref()};
+    }
+
+    swap() {
+        lib.SDL_GL_SwapWindow(this._window$);
+    }
+
+    createWindowAndRenderer(w: number, h: number, flags: WindowFlags): { window: Window, renderer: Renderer } {
         let window$ = Ref.alloc(PWindow);
         let renderer$ = Ref.alloc(PRenderer);
         if (0 != lib.SDL_CreateWindowAndRenderer(w, h, flags, window$, renderer$)) {
